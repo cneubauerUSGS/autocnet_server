@@ -19,7 +19,6 @@ from plio.io.io_json import NumpyEncoder
 
 
 
-from plio.spatial.footprint import generate_gcps
 
 def data_from_cube(header):
     """
@@ -116,7 +115,7 @@ def generate_bodyfixed_footprint(camera, nnodes=5):
     poly.AddGeometry(ring)
     return poly
 
-def warped_vrt(camera, raster_size, fpath, outpath=None, no_data_value=0):
+def generate_vrt(camera, raster_size, fpath, outpath=None, no_data_value=0):
     gcps = generate_gcps(camera)
     xsize, ysize = raster_size
 
