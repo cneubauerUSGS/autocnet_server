@@ -155,7 +155,7 @@ class NetworkNode(Node):
 
     @descriptors.setter
     def descriptors(self, desc):
-        if desc:
+        if isinstance(desc, np.array):
             io_keypoints.to_hdf(self.keypoint_file, descriptors=desc)
 
     @property
