@@ -803,11 +803,3 @@ class AsynchronousFailedWatcher(threading.Thread):
                 self.queue.lrem(self.name,0, json.dumps(msg))
                 self.parent.generic_callback(msg)
 
-class SubCandidateGraph(nx.graphviews.SubGraph, NetworkCandidateGraph):
-    def __init__(self, *args, **kwargs):
-        super(SubCandidateGraph, self).__init__(*args, **kwargs)
-        #self._setup_db_connection()
-        self._setup_queues()
-        self.processing_queue = config['redis']['processing_queue']
-
-nx.graphviews.SubGraph = SubCandidateGraph
