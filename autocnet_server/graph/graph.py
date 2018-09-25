@@ -62,7 +62,7 @@ class NetworkNode(Node):
             self.parent = Parent(config)
         else:
             self.parent = parent
-        
+
         # Create a session to work in
         session = Session()
         # For now, just use the PATH to determine if the node/image is in the DB
@@ -73,7 +73,7 @@ class NetworkNode(Node):
             kwargs['node_id'] = res.id
         session.close()
         super(NetworkNode, self).__init__(*args, **kwargs)
-        
+
         if exists is False:
             # Create the camera entry
             try:
@@ -124,7 +124,7 @@ class NetworkNode(Node):
     def keypoint_file(self):
         res = self._from_db(Keypoints)
         if res is None:
-            return 
+            return
         return res.path
 
     @property
@@ -133,7 +133,7 @@ class NetworkNode(Node):
             return io_keypoints.from_hdf(self.keypoint_file, descriptors=False)
         except:
             return pd.DataFrame()
-            
+
     @keypoints.setter
     def keypoints(self, kps):
         session = Session()
@@ -178,10 +178,10 @@ class NetworkNode(Node):
                 plugin = csmapi.Plugin.findPlugin('USGS_ASTRO_LINE_SCANNER_PLUGIN')
                 self._camera = plugin.constructModelFromState(res.camera)
         return self._camera
-    
+
     @property
     def footprint(self):
-        
+
         res = Session().query(Images).filter(Images.id == self['node_id']).first()
         if res is None:
             try:
@@ -233,13 +233,13 @@ class NetworkEdge(edge.Edge):
         session.close()
         return res
 
-    @property 
+    @property
     def masks(self):
         res = Session().query(Edges.masks).\
                                         filter(Edges.source == self.source['node_id']).\
                                         filter(Edges.destination == self.destination['node_id']).\
                                         first()
-        
+
         if res:
             df = pd.DataFrame.from_records(res[0])
             df.index = df.index.map(int)
@@ -260,7 +260,7 @@ class NetworkEdge(edge.Edge):
                     continue
                 elif np.isnan(v):
                     input[k] = None
-            
+
 
         df = pd.DataFrame(v)
         session = Session()
@@ -281,7 +281,7 @@ class NetworkEdge(edge.Edge):
         ids = list(map(int, self.matches.index.values))
         res = Session().query(Costs).filter(Costs.match_id.in_(ids)).all()
         #qf = q.filter(Costs.match_id.in_(ids))
-        
+
         if res:
         # Parse the JSON dicts in the cost field into a full dimension dataframe
             costs = {r.match_id:r._cost for r in res}
@@ -340,7 +340,7 @@ class NetworkEdge(edge.Edge):
         df.index.name = 'id'
         # Explicit close to get the session cleaned up
         session.close()
-        return DbDataFrame(df, 
+        return DbDataFrame(df,
                            parent=self,
                            name='matches')
 
@@ -387,7 +387,15 @@ class NetworkEdge(edge.Edge):
             session.bulk_update_mappings(Matches, to_db_update)
         session.commit()
 
-    @property 
+    @matches.deleter
+    def matches(self):
+        session = Session()
+        session.query(Matches).filter(Matches.source == self.source['node_id'], Matches.destination == self.destination['node_id']).delete()
+        session.commit()
+        session.close()
+        return
+
+    @property
     def ring(self):
         res = self._from_db(Edges).first()
         if res:
@@ -410,7 +418,7 @@ class NetworkEdge(edge.Edge):
                          ring=ring)
             session.add(edge)
             session.commit()
-        return        
+        return
 
     @property
     def intersection(self):
@@ -419,13 +427,13 @@ class NetworkEdge(edge.Edge):
             d_fp = self.destination.footprint
             self._intersection = s_fp.intersection(d_fp)
         return self._intersection
-    
+
     @property
     def fundamental_matrix(self):
         res = self._from_db(Edges).first()
         if res:
             return res.fundamental
-        
+
     @fundamental_matrix.setter
     def fundamental_matrix(self, v):
         session = Session()
@@ -512,14 +520,14 @@ class NetworkCandidateGraph(network.CandidateGraph):
 
     def empty_queues(self):
         """
-        Delete all messages from the redis queue. This a convenience method. 
+        Delete all messages from the redis queue. This a convenience method.
         The `redis_queue` object is a redis-py StrictRedis object with API
         documented at: https://redis-py.readthedocs.io/en/latest/#redis.StrictRedis
         """
         return self.redis_queue.flushall()
 
     def apply(self, function, on='edge',out=None, args=(), walltime='01:00:00', **kwargs):
-    
+
         options = {
             'edge' : self.edges,
             'edges' : self.edges,
@@ -543,7 +551,7 @@ class NetworkCandidateGraph(network.CandidateGraph):
             # Determine if we are working with an edge or a node
             if len(elem) > 2:
                 id = (elem[0], elem[1])
-                image_path = (elem[2].source['image_path'], 
+                image_path = (elem[2].source['image_path'],
                               elem[2].destination['image_path'])
             else:
                 id = (elem[0])
@@ -556,7 +564,7 @@ class NetworkCandidateGraph(network.CandidateGraph):
                     'walltime':walltime,
                     'image_path':image_path,
                     'param_step':1}
-                
+
             self.redis_queue.rpush(self.processing_queue, json.dumps(msg))
 
         # SLURM is 1 based, while enumerate is 0 based
@@ -569,9 +577,9 @@ class NetworkCandidateGraph(network.CandidateGraph):
                      queue=config['cluster']['queue'],
                      outdir=config['cluster']['cluster_log_dir']+'/slurm-%A_%a.out',
                      env=config['python']['env_name'])
-        
+
         return job_counter
-        
+
     def generic_callback(self, msg):
         id = msg['id']
         if isinstance(id, (int, float, str)):
@@ -609,7 +617,7 @@ class NetworkCandidateGraph(network.CandidateGraph):
         rows = []
         for q in self._engine.execute(query).fetchall():
             overlaps = []
-            b = bytes(q['geom']) 
+            b = bytes(q['geom'])
             qgeom = shapely.wkb.loads(b)
             res = iquery.filter(Images.footprint_latlon.ST_Intersects(from_shape(qgeom, srid=949900)))
             for i in res:
@@ -622,7 +630,7 @@ class NetworkCandidateGraph(network.CandidateGraph):
             res = oquery.filter(Overlay.overlaps == o.overlaps).first()
             if res is None:
                 rows.append(o)
-        
+
         session.bulk_save_objects(rows)
         session.commit()
 
@@ -711,7 +719,7 @@ AND i1.id < i2.id""".format(query_string)
         session.close()
         # Add nodes that do not overlap any images
         obj = cls.from_adjacency(adjacency, node_id_map=adjacency_lookup, config=config)
-    
+
         return obj
 
     @classmethod
@@ -724,12 +732,12 @@ AND i1.id < i2.id""".format(query_string)
         """
         if isinstance(filelist, str):
             filelist = io_utils.file_to_list(filelist)
-        
+
         if basepath:
             filelist = [(f, os.path.join(basepath, f)) for f in filelist]
         else:
             filelist = [(os.path.basename(f), f) for f in filelist]
-        
+
         parent = Parent(config)
         # Get each of the images added to the DB (duplicates, by PATH, are omitted)
         for f in filelist:
@@ -802,4 +810,3 @@ class AsynchronousFailedWatcher(threading.Thread):
                 callback_func = getattr(self.parent, 'generic_callback')
                 self.queue.lrem(self.name,0, json.dumps(msg))
                 self.parent.generic_callback(msg)
-
